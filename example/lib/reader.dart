@@ -21,14 +21,14 @@ class TtsEngine implements SpeechEngine {
   final Reader _reader;
 
   @override
-  int get wordOffset => _reader._utteranceOffset;
+  int get wordEnd => _reader._utteranceEnd;
 
   @override
   Future<void> setRate(double rate) => _reader._tts.setSpeechRate(rate);
 
   @override
   Future<void> speak(String text) {
-    _reader._utteranceOffset = 0;
+    _reader._utteranceEnd = 0;
     return _reader._tts.speak(text);
   }
 
@@ -48,7 +48,7 @@ class Reader with WidgetsBindingObserver {
   String _language = 'en-US';
   int _position = 0;
   int _base = 0;
-  int _utteranceOffset = 0;
+  int _utteranceEnd = 0;
   double _rate = 0.5;
 
   // iOS and Android do not share a speech-rate scale. flutter_tts passes the
@@ -87,9 +87,10 @@ class Reader with WidgetsBindingObserver {
     // Remember how far the voice has come, for pause/resume.
     _tts.setProgressHandler((text, start, end, word) {
       // Two offsets, deliberately: `_position` is absolute in the unit and
-      // survives a pause; `_utteranceOffset` is relative to what was last
-      // handed to speak(), which is what the loop needs to resume.
-      _utteranceOffset = start;
+      // survives a pause; `_utteranceEnd` is relative to what was last
+      // handed to speak(), which is what the loop needs to go on from the
+      // next word after a speed change.
+      _utteranceEnd = end;
       _position = _base + start;
       // Re-assert the screen wakelock on every word — self-healing if a
       // platform quietly dropped it (seen on iOS mid-play-all).

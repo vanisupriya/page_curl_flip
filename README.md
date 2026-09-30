@@ -327,6 +327,17 @@ Golden baselines are macOS-rendered; regenerate them on macOS
 omit the sound/speech objects or pass no-ops — the callbacks are
 fire-and-forget, so an audio failure can never break the animation.
 
+## Finding the chrome from your app
+
+To point at the footer or the × from outside the package — a coach mark, a
+tour, an integration test — use the keys, never a class name (class names
+are renamed by `--obfuscate`):
+
+```dart
+final footer = find.byKey(FlipBookKeys.footerBar);
+final close = find.byKey(FlipBookKeys.closeIcon);
+```
+
 ## How it works
 
 Each flip captures the page as a bitmap at the device pixel ratio (capped at

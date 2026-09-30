@@ -30,6 +30,7 @@ ids=(
   LAY-06
   TOC-07
   RTL-06
+  KEY-01 KEY-02
 )
 
 missing=0

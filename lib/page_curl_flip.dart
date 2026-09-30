@@ -16,6 +16,7 @@ export 'src/flip_book_export_entry.dart';
 export 'src/flip_book_export_kind.dart';
 export 'src/flip_book_footer.dart';
 export 'src/flip_book_header.dart';
+export 'src/flip_book_keys.dart';
 export 'src/flip_book_marker.dart';
 export 'src/flip_book_marker_style.dart';
 export 'src/flip_book_page_style.dart';

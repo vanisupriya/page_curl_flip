@@ -222,6 +222,7 @@ class _FlipBookScaffold extends StatelessWidget {
     // page" never has to scan past a play button to find it.
     final voice = _voiceRow();
     final bar = Column(
+      key: FlipBookKeys.footerBar,
       mainAxisSize: MainAxisSize.min,
       children: [
         _footerButtons(),
@@ -681,7 +682,12 @@ class _FlipBookHeader extends StatelessWidget {
       onPressed: onClose,
       // The explicit semanticLabel is what screen readers announce;
       // the tooltip alone only fills the tooltip attribute (ACC-01).
-      icon: Icon(closeIcon, size: 20, semanticLabel: closeLabel),
+      icon: Icon(
+        closeIcon,
+        key: FlipBookKeys.closeIcon,
+        size: 20,
+        semanticLabel: closeLabel,
+      ),
       color: closeIconColor,
       tooltip: closeLabel,
     );

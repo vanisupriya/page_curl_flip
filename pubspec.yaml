@@ -3,7 +3,7 @@ description: >-
   A realistic cylindrical page-curl animation for Flutter: a multi-page
   FlipBook, a CurlOverlay you drive yourself, and a PageCurlRoute
   transition. Zero dependencies, RTL-aware.
-version: 0.2.3
+version: 0.2.4
 repository: https://github.com/vanisupriyam/page_curl_flip
 
 environment:
