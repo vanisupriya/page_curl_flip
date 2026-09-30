@@ -5,6 +5,7 @@ import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:page_curl_flip/page_curl_flip.dart';
 
+import 'chrome_tour.dart';
 import 'export_dialog.dart';
 import 'flip_sound.dart';
 import 'reader.dart';
@@ -35,6 +36,9 @@ class _LtrBookState extends State<LtrBook> {
   /// The reader's chosen pace. The package draws the control and reports
   /// the tap; applying it to the engine is the app's job.
   FlipBookReadSpeed _speed = FlipBookReadSpeed.normal;
+
+  /// The footer and × outlined by the "?" tour, or null while it is closed.
+  List<Rect>? _tour;
 
   // Three pages, one theme, every feature of the package spread across them.
   // See shared_pages.dart for why: a `body:` widget buys the look and loses
@@ -113,6 +117,16 @@ class _LtrBookState extends State<LtrBook> {
     // Nothing below is a default. Every icon, word, colour and type face is
     // this app's, to show how far the skeleton bends. The RTL book is the
     // same package with almost nothing set; open both and compare.
+    return Stack(
+      children: [
+        _book(context),
+        if (_tour case final holes?)
+          ChromeTour(holes: holes, onDone: () => setState(() => _tour = null)),
+      ],
+    );
+  }
+
+  Widget _book(BuildContext context) {
     return FlipBook(
       // Coated stock catches light as it bends — the sheen on the curling
       // page, turned up from the default for the magazine look.
@@ -140,10 +154,17 @@ class _LtrBookState extends State<LtrBook> {
       // never have to learn what a button means.
       // Header and footer retire together on a tap, so the book reads as
       // paper rather than as an app with a toolbar.
-      header: const FlipBookHeader(
+      header: FlipBookHeader(
         closeColor: kInk,
         closeLabel: 'CLOSE',
         autoHide: true,
+        // The "?" shows the package's two keys at work: it outlines the
+        // footer bar and the × wherever they are on this screen.
+        action: IconButton(
+          icon: const Icon(Icons.help_outline_rounded, color: kInk),
+          tooltip: 'Show the controls',
+          onPressed: () => setState(() => _tour = bookChromeRects(context)),
+        ),
       ),
 
       // The bar belongs to the same magazine as the page: teal bar, white

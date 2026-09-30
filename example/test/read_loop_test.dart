@@ -14,15 +14,35 @@ class _FakeEngine implements SpeechEngine {
   /// Word boundaries the engine will report, one per utterance.
   final List<int> boundaries;
 
-  _FakeEngine({this.boundaries = const []});
+  /// Where each reported word ENDS, one per utterance; defaults to
+  /// [boundaries] when a test does not care about the difference.
+  final List<int>? ends;
+
+  /// Whether [stop] completes the utterance in flight. Android's engine does;
+  /// iOS's (flutter_tts 4.2.5, `didCancel`) never completes a stopped speak.
+  final bool stopCompletesSpeak;
+
+  /// Whether [stop] returns only after a turn of the event loop, as a real
+  /// platform call does — long enough for the loop to start the next speak.
+  final bool slowStop;
+
+  _FakeEngine({
+    this.boundaries = const [],
+    this.ends,
+    this.stopCompletesSpeak = true,
+    this.slowStop = false,
+  });
 
   int _utterance = 0;
   Completer<void>? _current;
 
   @override
-  int get wordOffset => _utterance - 1 < boundaries.length && _utterance > 0
-      ? boundaries[_utterance - 1]
-      : 0;
+  int get wordEnd {
+    final list = ends ?? boundaries;
+    return _utterance - 1 < list.length && _utterance > 0
+        ? list[_utterance - 1]
+        : 0;
+  }
 
   @override
   Future<void> setRate(double rate) async => rates.add(rate);
@@ -35,7 +55,16 @@ class _FakeEngine implements SpeechEngine {
   }
 
   @override
-  Future<void> stop() async => finish();
+  Future<void> stop() async {
+    if (stopCompletesSpeak) {
+      finish();
+    } else {
+      _current = null;
+    }
+    if (slowStop) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+  }
 
   /// Completes the utterance in flight, as a real engine does when it
   /// reaches the end or is stopped.
@@ -94,7 +123,7 @@ void main() {
 
   test('SPD-08: an engine that reports no word progress repeats the '
       'remainder instead of hanging', () async {
-    // boundaries empty → wordOffset is always 0, the Samsung case.
+    // boundaries empty → wordEnd is always 0, the Samsung case.
     final engine = _FakeEngine();
     final loop = ReadLoop(engine);
 
@@ -142,4 +171,80 @@ void main() {
       expect(engine.rates, [1.5]);
     },
   );
+
+  test('SPD-11: on iOS, where a stopped speak never completes, a speed '
+      'change still carries on at the new rate', () async {
+    final engine = _FakeEngine(boundaries: [20], stopCompletesSpeak: false);
+    final loop = ReadLoop(engine);
+
+    final done = loop.read(unit, rate: 1);
+    await Future<void>.delayed(Duration.zero);
+
+    await loop.setRate(1.5);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(engine.spoken, [
+      unit,
+      unit.substring(20),
+    ], reason: 'spoke on without waiting for the stopped utterance');
+    expect(engine.rates, [1.0, 1.5]);
+
+    engine.finish();
+    await done;
+    expect(loop.speaking, isFalse);
+  });
+
+  test('SPD-12: on iOS, pause or stop still ends the unit', () async {
+    final engine = _FakeEngine(stopCompletesSpeak: false);
+    final loop = ReadLoop(engine);
+
+    final done = loop.read(unit, rate: 1);
+    await Future<void>.delayed(Duration.zero);
+    await loop.abort();
+
+    await expectLater(done.timeout(const Duration(seconds: 1)), completes);
+    expect(engine.spoken, [unit]);
+    expect(loop.speaking, isFalse);
+  });
+
+  test('an Android engine that completes on stop is not cut short on the '
+      'next utterance', () async {
+    final engine = _FakeEngine(boundaries: [20], slowStop: true);
+    final loop = ReadLoop(engine);
+
+    final done = loop.read(unit, rate: 1);
+    await Future<void>.delayed(Duration.zero);
+    await loop.setRate(1.5);
+    await Future<void>.delayed(Duration.zero);
+
+    var finished = false;
+    unawaited(done.then((_) => finished = true));
+    await Future<void>.delayed(Duration.zero);
+    expect(finished, isFalse, reason: 'the second utterance is still speaking');
+
+    engine.finish();
+    await done;
+    expect(engine.spoken, [unit, unit.substring(20)]);
+  });
+
+  test('SPD-13: a speed change goes on from the NEXT word — the word being '
+      'spoken is not said again', () async {
+    // "fox" was being spoken: it starts at 16 and ends at 19.
+    final engine = _FakeEngine(boundaries: [16], ends: [19]);
+    final loop = ReadLoop(engine);
+
+    final done = loop.read(unit, rate: 1);
+    await Future<void>.delayed(Duration.zero);
+    await loop.setRate(1.5);
+    await Future<void>.delayed(Duration.zero);
+    engine.finish();
+    await done;
+
+    expect(engine.spoken[1], unit.substring(19));
+    expect(
+      engine.spoken[1].trimLeft(),
+      startsWith('jumps'),
+      reason: '"fox" is not repeated',
+    );
+  });
 }

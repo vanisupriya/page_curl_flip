@@ -1,3 +1,22 @@
+## 0.2.4
+
+* **Added: `FlipBookKeys`.** Two stable keys on the book's chrome —
+  `FlipBookKeys.footerBar` (the whole footer bar) and
+  `FlipBookKeys.closeIcon` (the header's × icon) — so an app can find them in
+  its widget tree, for example to spotlight them in a coach mark. Unlike a
+  search by `runtimeType.toString()`, a key survives
+  `flutter build --obfuscate`. No visual change (goldens unchanged).
+* **Example: a speed change mid-sentence works on iOS.** flutter_tts never
+  completes a stopped utterance on iOS, so the example's read loop waited
+  forever and the new speed only applied after stop and play. The loop now
+  ends that wait itself, and goes on from the NEXT word instead of repeating
+  the one being spoken — the same code on Android and iOS. (SPD-11..13)
+* **Example: a "?" tour** in the LTR book outlines the footer bar and the ×,
+  found with `FlipBookKeys`.
+* **Example: builds on current Flutter** — Android Gradle 8.14, AGP 8.11.1,
+  Kotlin 2.2.20; the iOS project migrated by Flutter (UIScene, Swift Package
+  Manager, iOS 15 minimum). The package itself is unchanged by these.
+
 ## 0.2.3
 
 * **Fixed: a stretched footer never wraps.** With `horizontalInset` set the

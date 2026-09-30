@@ -17,6 +17,12 @@
 /// The book never sees any of it: one `onRead` call, one future, completed
 /// when the unit is genuinely finished. The read marker does not move.
 ///
+/// # The engine that never says it stopped
+///
+/// On iOS (flutter_tts 4.2.5) a stopped utterance never completes its speak
+/// future — only a finished one does. So the loop does not wait for the
+/// engine to confirm a stop: a speed change or an abort ends the wait itself.
+///
 /// # The engine that cannot keep up
 ///
 /// Some engines report no word progress at all (certain Samsung builds).
@@ -24,7 +30,9 @@
 /// repeats from there — the same honest fallback pause/resume already has.
 library;
 
-/// The bit of a speech engine this loop needs. Keeping it to four calls is
+import 'dart:async';
+
+/// The bit of a speech engine this loop needs. Keeping it to these few calls is
 /// what lets a test drive the loop without a real engine — the behaviour
 /// below is otherwise unobservable until you are holding a phone.
 abstract class SpeechEngine {
@@ -38,10 +46,9 @@ abstract class SpeechEngine {
   /// Interrupts the current utterance.
   Future<void> stop();
 
-  /// The last word boundary reported for the current utterance, as an
-  /// offset into the text handed to [speak]. Zero when the engine reports
-  /// no progress.
-  int get wordOffset;
+  /// Where the last reported word ENDS, as an offset into the text handed to
+  /// [speak]. Zero when the engine reports no progress.
+  int get wordEnd;
 }
 
 /// Speaks one unit, restarting at the last word boundary whenever the rate
@@ -57,6 +64,10 @@ class ReadLoop {
   bool _speaking = false;
   bool _rateChanged = false;
   bool _aborted = false;
+
+  /// Ends the wait for the utterance in flight, for engines whose stop never
+  /// completes it. One per utterance.
+  Completer<void>? _interrupt;
 
   /// Whether a unit is being spoken right now.
   bool get speaking => _speaking;
@@ -77,17 +88,22 @@ class ReadLoop {
       while (true) {
         await engine.setRate(_rate);
         _rateChanged = false;
-        await engine.speak(text.substring(_base.clamp(0, text.length)));
+        final interrupt = _interrupt = Completer<void>();
+        await Future.any([
+          engine.speak(text.substring(_base.clamp(0, text.length))),
+          interrupt.future,
+        ]);
+        _interrupt = null;
         if (_aborted) {
           return;
         }
         if (!_rateChanged) {
           return; // Finished on its own.
         }
-        // Carry on from the word the engine had reached, not from the top.
-        // `wordOffset` is relative to what was last spoken, so it has to be
-        // added to where that started.
-        final next = _base + engine.wordOffset;
+        // Carry on from the word AFTER the one being spoken — never from the
+        // top, and never saying that word twice. `wordEnd` is relative to
+        // what was last spoken, so it has to be added to where that started.
+        final next = _base + engine.wordEnd;
         if (next <= _base || next >= text.length) {
           // No usable progress, or the boundary is at the very end. Either
           // way, repeating the remainder is the only honest option.
@@ -110,8 +126,7 @@ class ReadLoop {
       return;
     }
     _rateChanged = true;
-    // Completes the in-flight `speak`, which sends the loop round again.
-    await engine.stop();
+    await _stopUtterance();
   }
 
   /// Abandons the unit: the reader paused, stopped, or turned the page.
@@ -121,6 +136,17 @@ class ReadLoop {
       return;
     }
     _aborted = true;
+    await _stopUtterance();
+  }
+
+  /// Stops the utterance in flight and ends the wait for it — whether or not
+  /// the engine completes a stopped speak. Only that utterance's wait: the
+  /// next one, already started by an engine that did complete, is left alone.
+  Future<void> _stopUtterance() async {
+    final interrupt = _interrupt;
     await engine.stop();
+    if (interrupt != null && !interrupt.isCompleted) {
+      interrupt.complete();
+    }
   }
 }
