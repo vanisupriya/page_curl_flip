@@ -537,6 +537,11 @@ abstract class _FlipBookStateBase extends State<FlipBook>
   }
 
   void _toggleMute() => setState(() => _muted = !_muted);
+
+  bool get _flipSoundOn =>
+      (_footer?.sound != null) &&
+      !_muted &&
+      !(_footer?.sound?.silenced ?? false);
   void _toggleIndex() => setState(() => _showIndex = !_showIndex);
 
   /// EDG-04: an explicit jump is the user's latest intent, so it wins over
@@ -645,7 +650,7 @@ abstract class _FlipBookStateBase extends State<FlipBook>
     }
     _stopReading();
 
-    if ((_footer?.sound != null) && !_muted) {
+    if (_flipSoundOn) {
       unawaited(_playFlipSound());
     }
 
@@ -684,7 +689,7 @@ abstract class _FlipBookStateBase extends State<FlipBook>
     }
     _stopReading();
 
-    if ((_footer?.sound != null) && !_muted) {
+    if (_flipSoundOn) {
       unawaited(_playFlipSound());
     }
 

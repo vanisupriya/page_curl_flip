@@ -116,6 +116,24 @@ button appears; omit it and the book is silent:
 footer: FlipBookFooter(sound: FlipBookSound(onFlip: _mySound.play)),
 ```
 
+When the sound is off outside the book — say the phone is on silent — pass
+`silenced: true`. The package reads nothing from the phone: detect it in
+your app (on Android, the ringer mode; iOS has no public API for the
+silent switch). The example reads both on Android, and the volume on iOS,
+with a few lines of its own platform code (`example/lib/phone_sound.dart`). The speaker shows muted, flips play nothing, and the
+reader's own mute is kept for later:
+
+```dart
+footer: FlipBookFooter(
+  sound: FlipBookSound(
+    onFlip: _mySound.play,
+    silenced: phoneIsSilent,
+    onSilencedTap: () => showHint('Your phone is on silent'),
+    silencedLabel: 'Sound is off on this phone',
+  ),
+),
+```
+
 ## Read aloud
 
 Wire any speech engine; the book reads **unit by unit** and calls you once

@@ -537,12 +537,15 @@ class _FlipBookScaffold extends StatelessWidget {
   /// Null when the book has neither a voice nor a mute button, and then the
   /// footer is a single row again — a silent book must not pay for an empty
   /// strip.
+  static void _ignoreTap() {}
+
   Widget? _voiceRow() {
     final hasVoice = onReadPlay != null;
     final hasMute = onMuteToggle != null;
     if (!hasVoice && !hasMute) {
       return null;
     }
+    final silenced = footer.sound?.silenced ?? false;
     // The pace shows only while the voice is actually speaking — paused or
     // idle, there is nothing to be fast or slow about.
     // Resolved to a value, not a boolean: the widget below then needs no
@@ -561,15 +564,21 @@ class _FlipBookScaffold extends StatelessWidget {
       children: [
         if (hasMute)
           _control(
-            content: isMuted ? footer.sound?.offChild : footer.sound?.onChild,
-            icon: isMuted
+            content: (isMuted || silenced)
+                ? footer.sound?.offChild
+                : footer.sound?.onChild,
+            icon: (isMuted || silenced)
                 ? (footer.sound?.offIcon ?? Icons.volume_off)
                 : (footer.sound?.onIcon ?? Icons.volume_up),
-            label: isMuted
-                ? (footer.sound?.unmuteLabel ?? '')
-                : (footer.sound?.muteLabel ?? ''),
+            label: switch ((silenced, isMuted)) {
+              (true, _) => footer.sound?.silencedLabel ?? '',
+              (false, true) => footer.sound?.unmuteLabel ?? '',
+              (false, false) => footer.sound?.muteLabel ?? '',
+            },
             color: (footer.sound?.color ?? footer.iconColor),
-            onTap: onMuteToggle!,
+            onTap: silenced
+                ? (footer.sound?.onSilencedTap ?? _ignoreTap)
+                : onMuteToggle!,
           ),
         // Idle → play (+ play-all). Playing → pause (when supported) +
         // stop. Paused → resume + stop.

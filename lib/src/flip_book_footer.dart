@@ -227,6 +227,9 @@ class FlipBookSound {
     this.muteLabel = 'Mute flip sound',
     this.unmuteLabel = 'Unmute flip sound',
     this.color,
+    this.silenced = false,
+    this.onSilencedTap,
+    this.silencedLabel = 'Sound is off on this device',
   });
 
   /// Plays your sound. Failures are swallowed — a broken sound must never
@@ -257,4 +260,14 @@ class FlipBookSound {
 
   /// Colour of the glyph; null uses the footer's.
   final Color? color;
+
+  /// The sound is off outside the book (for example the phone's silent mode):
+  /// the speaker shows muted, flips play nothing, and the book's own mute is kept.
+  final bool silenced;
+
+  /// Called for a tap on the speaker while [silenced]; the book's mute does not change.
+  final VoidCallback? onSilencedTap;
+
+  /// What a screen reader announces while [silenced].
+  final String silencedLabel;
 }

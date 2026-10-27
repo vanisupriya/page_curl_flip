@@ -1,3 +1,19 @@
+## 0.2.5
+
+* **Added: `FlipBookSound.silenced`.** For a sound that is off outside the
+  book (for example the phone's silent mode). While it is true the speaker
+  shows the muted glyph, flips play nothing, and a tap calls the new
+  `onSilencedTap` instead of toggling the book's own mute, so the reader's
+  choice is kept. `silencedLabel` is what a screen reader announces. All
+  three are optional; a book that does not pass them is unchanged (goldens
+  unchanged).
+* **Example: both books follow the phone.** Silent mode (Android) mutes the
+  speaker and a tap on it explains why; read-aloud at zero volume says so
+  once. The phone is read by the example's own platform code, never by the
+  package. The "?" controls tour is removed from the example.
+* **Tests: line coverage 91% → 99.9%** (180 tests; one unreachable defensive
+  line left). No behaviour change; goldens unchanged.
+
 ## 0.2.4
 
 * **Added: `FlipBookKeys`.** Two stable keys on the book's chrome —

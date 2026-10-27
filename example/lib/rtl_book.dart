@@ -8,6 +8,7 @@ import 'package:page_curl_flip/page_curl_flip.dart';
 import 'export_dialog.dart';
 import 'flip_sound.dart';
 import 'reader.dart';
+import 'phone_sound.dart';
 import 'shared_pages.dart';
 import 'stores.dart';
 
@@ -18,7 +19,7 @@ class RtlBook extends StatefulWidget {
   State<RtlBook> createState() => _RtlBookState();
 }
 
-class _RtlBookState extends State<RtlBook> {
+class _RtlBookState extends State<RtlBook> with PhoneSoundWatch {
   final _reader = Reader();
 
   // Its own player, because a sound is an app asset and every consumer
@@ -172,7 +173,15 @@ class _RtlBookState extends State<RtlBook> {
   }
 
   @override
+  @override
+  void initState() {
+    super.initState();
+    startPhoneSoundWatch();
+  }
+
+  @override
   void dispose() {
+    stopPhoneSoundWatch();
     _reader.dispose();
     _sound.dispose();
     super.dispose();
@@ -189,6 +198,15 @@ class _RtlBookState extends State<RtlBook> {
     // reader. Language is a correctness requirement; colour is a taste. So
     // this book overrides every user-visible string, which is also the
     // honest demonstration: **every label is translatable**.
+    // A Scaffold only so the phone-sound notes can show as snack bars.
+    return Scaffold(
+      backgroundColor: kStock,
+      resizeToAvoidBottomInset: false,
+      body: _book(context),
+    );
+  }
+
+  Widget _book(BuildContext context) {
     return FlipBook(
       // Coated stock catches light as it bends — the sheen on the curling
       // page, turned up from the default for the magazine look.
@@ -242,6 +260,11 @@ class _RtlBookState extends State<RtlBook> {
           onFlip: _sound.play,
           muteLabel: 'كتم',
           unmuteLabel: 'تشغيل الصوت',
+          silenced: phone.silent,
+          silencedLabel: 'الهاتف في الوضع الصامت',
+          onSilencedTap: () => showPhoneNote(
+            'هاتفك في الوضع الصامت. أوقف الوضع الصامت لتسمع صوت تقليب الصفحة.',
+          ),
         ),
       ),
 
@@ -307,7 +330,10 @@ class _RtlBookState extends State<RtlBook> {
       // The voice is not decoration: the package ships no speech engine, so
       // these callbacks are the minimum a talking book needs.
       readAloud: FlipBookReadAloud(
-        onRead: _readAloud,
+        onRead: (sentence) {
+          noteVolumeOnce('مستوى صوت هاتفك 0%. ارفعه لتسمع القراءة.');
+          return _readAloud(sentence);
+        },
         onStop: _reader.stop,
         onPause: _reader.pause,
         onResume: _reader.resume,

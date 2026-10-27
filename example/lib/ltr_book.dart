@@ -5,10 +5,10 @@ import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:page_curl_flip/page_curl_flip.dart';
 
-import 'chrome_tour.dart';
 import 'export_dialog.dart';
 import 'flip_sound.dart';
 import 'reader.dart';
+import 'phone_sound.dart';
 import 'shared_pages.dart';
 import 'stores.dart';
 
@@ -24,7 +24,7 @@ class LtrBook extends StatefulWidget {
   State<LtrBook> createState() => _LtrBookState();
 }
 
-class _LtrBookState extends State<LtrBook> {
+class _LtrBookState extends State<LtrBook> with PhoneSoundWatch {
   final _reader = Reader();
   final _sound = FlipSound();
 
@@ -37,8 +37,13 @@ class _LtrBookState extends State<LtrBook> {
   /// the tap; applying it to the engine is the app's job.
   FlipBookReadSpeed _speed = FlipBookReadSpeed.normal;
 
-  /// The footer and × outlined by the "?" tour, or null while it is closed.
-  List<Rect>? _tour;
+  @override
+  void initState() {
+    super.initState();
+    // The speaker follows the phone: silent mode mutes it, and a tap on it
+    // says why. A real app does the same with what it detects.
+    startPhoneSoundWatch();
+  }
 
   // Three pages, one theme, every feature of the package spread across them.
   // See shared_pages.dart for why: a `body:` widget buys the look and loses
@@ -101,6 +106,7 @@ class _LtrBookState extends State<LtrBook> {
 
   @override
   void dispose() {
+    stopPhoneSoundWatch();
     _reader.dispose();
     _sound.dispose();
     super.dispose();
@@ -117,12 +123,11 @@ class _LtrBookState extends State<LtrBook> {
     // Nothing below is a default. Every icon, word, colour and type face is
     // this app's, to show how far the skeleton bends. The RTL book is the
     // same package with almost nothing set; open both and compare.
-    return Stack(
-      children: [
-        _book(context),
-        if (_tour case final holes?)
-          ChromeTour(holes: holes, onDone: () => setState(() => _tour = null)),
-      ],
+    // A Scaffold only so the phone-sound notes can show as snack bars.
+    return Scaffold(
+      backgroundColor: kStock,
+      resizeToAvoidBottomInset: false,
+      body: _book(context),
     );
   }
 
@@ -158,13 +163,6 @@ class _LtrBookState extends State<LtrBook> {
         closeColor: kInk,
         closeLabel: 'CLOSE',
         autoHide: true,
-        // The "?" shows the package's two keys at work: it outlines the
-        // footer bar and the × wherever they are on this screen.
-        action: IconButton(
-          icon: const Icon(Icons.help_outline_rounded, color: kInk),
-          tooltip: 'Show the controls',
-          onPressed: () => setState(() => _tour = bookChromeRects(context)),
-        ),
       ),
 
       // The bar belongs to the same magazine as the page: teal bar, white
@@ -201,6 +199,11 @@ class _LtrBookState extends State<LtrBook> {
           muteLabel: 'MUTE',
           unmuteLabel: 'SOUND ON',
           color: kOnColourDim,
+          silenced: phone.silent,
+          silencedLabel: 'PHONE ON SILENT',
+          onSilencedTap: () => showPhoneNote(
+            'Your phone is on silent. Turn silent mode off to hear the page flip.',
+          ),
         ),
       ),
 
@@ -215,7 +218,12 @@ class _LtrBookState extends State<LtrBook> {
       ),
 
       readAloud: FlipBookReadAloud(
-        onRead: (unit) => _reader.read(unit, 'en-US', _speed),
+        onRead: (unit) {
+          noteVolumeOnce(
+            "Your phone's volume is at 0%. Please turn it up to hear the reading.",
+          );
+          return _reader.read(unit, 'en-US', _speed);
+        },
         onStop: _reader.stop,
         onPause: _reader.pause,
         onResume: _reader.resume,
